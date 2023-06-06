@@ -10,36 +10,24 @@ import {
 } from "@mantine/core";
 import {ChevronDown} from 'tabler-icons-react';
 import {useAppDispatch, useAppSelector} from "2-BLL/store";
-import {
-    catalogueDataVacancies, isLoadingVacancies,
-    jobAreaVacancies,
-    paymentFromVacancies, paymentToVacancies
-} from "2-BLL/vacanciesSlice/vacancies.selectors";
 import {vacanciesActions} from "2-BLL/vacanciesSlice/vacancies.slice";
 import {useStyles} from './styleFilters';
+import {useLazyGetCataloguesQuery} from "2-BLL/vacanciesSlice/service/catalogues.slice";
 
 export const Filters = () => {
 
     const dispatch = useAppDispatch()
+    const isLoading = useAppSelector(state => state.vacancies.isLoading)
+    const paymentTo = useAppSelector(state => state.vacancies.payment_to)
+    const paymentFrom = useAppSelector(state => state.vacancies.payment_from)
+    const jobArea = useAppSelector(state => state.vacancies.jobArea)
 
-    const catalogueDataText = useAppSelector(catalogueDataVacancies).map(catalogue => catalogue['title_rus'])
-    const paymentFrom = useAppSelector(paymentFromVacancies)
-    const paymentTo = useAppSelector(paymentToVacancies)
-    const jobArea = useAppSelector(jobAreaVacancies)
-    const isLoading = useAppSelector(isLoadingVacancies)
-
-    const [jobAreaValue, setJobAreaValue] = useState<string>(jobArea);
-    const [minSalaryValue, setMinSalaryValue] = useState<number | ''>(paymentFrom === '' ? '' : paymentFrom);
-    const [maxSalaryValue, setMaxSalaryValue] = useState<number | ''>(paymentTo === '' ? '' : paymentFrom);
-
+    const [jobAreaValue, setJobAreaValue] = useState<string>('');
+    const [minSalaryValue, setMinSalaryValue] = useState<number | ''>('');
+    const [maxSalaryValue, setMaxSalaryValue] = useState<number | ''>('');
     const [vacancyAriaSelectOpen, setVacancyAriaSelectOpen] = useState<boolean>(false);
 
     const {classes, cx} = useStyles();
-
-    const selectDataAttribute = {'data-elem': 'industry-select'}
-    const minSalaryInputDataAttribute = {'data-elem': 'salary-from-input'}
-    const maxSalaryInputDataAttribute = {'data-elem': 'salary-to-input'}
-    const useFiltersDataAttribute = {'data-elem': 'search-button'}
 
     const setFiltersButtonHandler = () => {
         dispatch(vacanciesActions.setFilters({
@@ -63,6 +51,17 @@ export const Filters = () => {
         setMinSalaryValue(paymentFrom)
         setMaxSalaryValue(paymentTo)
     }, [paymentFrom, paymentTo, jobArea])
+
+    const [getCataloguesData,{data: cataloguesData}] = useLazyGetCataloguesQuery()
+
+    let catalogueDataText = cataloguesData ? cataloguesData.map(catalogue => catalogue['title_rus']) : []
+
+    useEffect(() => {
+        getCataloguesData({})
+            .then((res)=> {
+                dispatch(vacanciesActions.setCatalogueData({data: res.data!}))
+            })
+    }, [])
 
     return (
         <Container className={classes.filtersContainer}>
@@ -109,7 +108,6 @@ export const Filters = () => {
                         },
                     },
                 })}
-                {...selectDataAttribute}
             />
             <Box>
                 <NumberInput
@@ -124,7 +122,6 @@ export const Filters = () => {
                         value > maxSalaryValue && setMaxSalaryValue(value)
                     }}
                     step={1000}
-                    {...minSalaryInputDataAttribute}
                 />
                 <NumberInput
                     placeholder="До"
@@ -137,12 +134,11 @@ export const Filters = () => {
                         value < minSalaryValue && setMinSalaryValue(value);
                     }}
                     step={1000}
-                    {...maxSalaryInputDataAttribute}
                 />
             </Box>
             <Button disabled={isLoading} onClick={setFiltersButtonHandler}
                     className={classes.filterButton}
-                    {...useFiltersDataAttribute}>
+            >
                 Применить
             </Button>
         </Container>

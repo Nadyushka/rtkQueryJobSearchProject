@@ -1,7 +1,4 @@
-import {AnyAction, createSlice, PayloadAction} from "@reduxjs/toolkit";
-import axios from "axios";
-import {authApi, ResponseTypeAuth} from "1-DAL/authApi";
-import {createAppAsyncThunk} from "3-UI/u4-common/utilits/create-app-async-thunk";
+import {createSlice, PayloadAction} from "@reduxjs/toolkit";
 
 const initialState = {
     isAuthorised: false,
@@ -16,86 +13,24 @@ const initialState = {
     } as UserAuthDataType,
 }
 
-const authorisedWithPassword = createAppAsyncThunk<ResponseTypeAuth, AuthorisedWithPasswordArgsType>(
-    "auth/authorisedWithPassword",
-    async ({login, password, client_id, client_secret, hr}, {rejectWithValue, getState}) => {
-        try {
-            let res = await authApi.authorisedWithPassword({login, password, client_id, client_secret, hr})
-            return res.data
-        } catch (error) {
-            return rejectWithValue({error})
-        }
-    }
-);
-
-const refreshToken = createAppAsyncThunk<ResponseTypeAuth>(
-    "auth/refreshToken",
-    async (_, { rejectWithValue, getState}) => {
-        const refreshToken = getState().auth.userAuthData.refresh_token
-        try {
-            let res = await authApi.refreshToken(refreshToken)
-            return res.data
-        } catch (error) {
-            return rejectWithValue({error})
-        }
-    }
-);
-
 const slice = createSlice({
     name: "auth",
     initialState,
     reducers: {
-        isLoading: (state, action: PayloadAction<{ isLoading: boolean }>) => {
-            state.isLoading = action.payload.isLoading
+        setAuthorisedData: (state, action: PayloadAction<{
+            "access_token": string,
+            "refresh_token": string,
+            "ttl": number | null,
+        }>) => {
+            state.userAuthData.refresh_token = action.payload.refresh_token
+            state.userAuthData.access_token = action.payload.access_token
+            state.userAuthData.ttl = action.payload.ttl
         },
-        setError: (state, action: PayloadAction<{ error: string }>) => {
-            state.error = action.payload.error
-        },
-        setAuthorised: (state, action: PayloadAction<{ isAuthorised: boolean }>) => {
-            state.isAuthorised = true
-        }
-    },
-    extraReducers: (builder) => {
-        builder.addCase(authorisedWithPassword.fulfilled, (state, action) => {
-            state.userAuthData = action.payload;
-            state.isAuthorised = true
-        });
-        builder.addCase(refreshToken.fulfilled, (state, action) => {
-            state.userAuthData = action.payload;
-        });
-        builder.addMatcher((action: AnyAction) => {
-            return action.type.endsWith('/pending')
-        }, (state, action) => {
-            state.isLoading = true
-            state.error = ''
-        });
-        builder.addMatcher((action: AnyAction) => {
-            return action.type.endsWith('/rejected')
-        }, (state, action) => {
-            state.isLoading = false
-            const e = action.payload.error
-            if (action.payload) {
-                if (axios.isAxiosError<ErrorType>(e)) {
-                    state.error = e.response?.data ? e.response.data.error.message : e.message
-                } else {
-                    state.error = 'Some error occurred'
-                }
-            } else {
-                state.error = 'Some error occurred'
-            }
-        });
-        builder.addMatcher((action: AnyAction) => {
-            return action.type.endsWith('/fulfilled')
-        }, (state, action) => {
-            state.isLoading = false
-        })
-
     },
 })
 
 export const authReducer = slice.reducer;
 export const authActions = slice.actions;
-export const authThunks = {authorisedWithPassword, refreshToken};
 
 // types
 

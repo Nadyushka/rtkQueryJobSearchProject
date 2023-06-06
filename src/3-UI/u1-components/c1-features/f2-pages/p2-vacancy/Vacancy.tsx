@@ -1,55 +1,51 @@
-import React, {useEffect} from 'react';
+import React from 'react';
 import {useParams} from "react-router-dom";
 import {Container, TypographyStylesProvider} from "@mantine/core";
-import {vacanciesThunks} from "2-BLL/vacanciesSlice/vacancies.slice";
-import {useAppDispatch, useAppSelector} from "2-BLL/store";
-import {errorVacancies, isLoadingVacancies, vacancyDataVacancies} from "2-BLL/vacanciesSlice/vacancies.selectors";
 import {LoaderComponent} from "../../../c2-commonComponents/loader/Loader";
 import {ErrorComponent} from "../../../c2-commonComponents/error/ErrorComponent";
 import {VacancyItem} from "../../../c2-commonComponents/vacancyItem/VacancyItem";
 import {useStyles} from "./styleVacancy";
+import {useGetVacancyQuery} from '2-BLL/vacanciesSlice/service/vacancies.slice';
+import {useAppSelector} from "2-BLL/store";
 
 
 export const Vacancy = () => {
 
-    const dispatch = useAppDispatch()
-
-    const {
-        id,
-        profession,
-        payment_from,
-        currency,
-        marked,
-        type_of_work,
-        town,
-        vacancyRichText
-    } = useAppSelector(vacancyDataVacancies)
-    const isLoading = useAppSelector(isLoadingVacancies)
-    const error = useAppSelector(errorVacancies)
-
-    const params = useParams<{ id: string }>()
-
     const {classes, cx} = useStyles();
 
-    useEffect(() => {
-        dispatch(vacanciesThunks.setVacancyData({id: +params.id!}))
-    }, [params.id])
+    const selectedVacanciesId = useAppSelector(state => state.selectedVacancies.vacanciesData).objects.map(v => v.id)
 
-    if (isLoading) {
+    const params = useParams<{ id: string }>()
+    const id = params.id!;
+    const {data, isLoading, isFetching, error, isSuccess} = useGetVacancyQuery(id)
+
+    let errorMessageText: string = ''
+    if (error && 'status' in error!) {
+        errorMessageText = 'error' in error ? error.error : JSON.stringify(error.data)
+    }
+
+    let markedProperty = false
+
+    if (isSuccess) markedProperty = selectedVacanciesId.includes(data!.id)
+
+
+    if (isLoading || isFetching) {
         return <LoaderComponent/>
     }
 
     return (
         <Container className={classes.vacancyContainer}>
-            <VacancyItem id={id} professionName={profession} payment_from={payment_from}
-                         currency={currency} type_of_work={type_of_work.title} town={town.title}
-                         marked={marked}
-                         showSelectedVacancy={true}/>
-            <TypographyStylesProvider className={classes.vacancyInfo}>
-                <div dangerouslySetInnerHTML={{__html: vacancyRichText}}/>
-            </TypographyStylesProvider>
-
-            <ErrorComponent errorMessage={error}/>
+            {data && <>
+                <VacancyItem id={data!.id} professionName={data!.profession} payment_from={data!.payment_from}
+                             currency={data!.currency} type_of_work={data!.type_of_work.title} town={data!.town.title}
+                             marked={markedProperty}
+                             showSelectedVacancy={true}/>
+                <TypographyStylesProvider className={classes.vacancyInfo}>
+                    <div dangerouslySetInnerHTML={{__html: data!.vacancyRichText}}/>
+                </TypographyStylesProvider>
+            </>
+            }
+            <ErrorComponent errorMessage={errorMessageText}/>
         </Container>
     );
 };

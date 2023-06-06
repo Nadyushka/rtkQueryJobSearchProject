@@ -27,8 +27,6 @@ export const vacancyApi = {
         const params = {
             ...paramData,
             no_agreement: 1,
-            // order_field: 'payment',
-            // order_direction: 'desc',
             'Authorization': `Bearer ${token}`,
         }
         return instance.get<ResponseTypeVacancies>('vacancies', {params})

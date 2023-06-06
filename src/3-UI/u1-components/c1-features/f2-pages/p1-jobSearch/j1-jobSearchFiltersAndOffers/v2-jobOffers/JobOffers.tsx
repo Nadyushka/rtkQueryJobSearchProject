@@ -6,11 +6,9 @@ import {LoaderComponent} from "../../../../../c2-commonComponents/loader/Loader"
 import {ErrorComponent} from "../../../../../c2-commonComponents/error/ErrorComponent";
 import {VacancyItem} from "../../../../../c2-commonComponents/vacancyItem/VacancyItem";
 import {useAppDispatch, useAppSelector} from "2-BLL/store";
-import {vacanciesActions, vacanciesThunks} from "2-BLL/vacanciesSlice/vacancies.slice";
+import {vacanciesActions} from "2-BLL/vacanciesSlice/vacancies.slice";
 import {
-    catalogueDataVacancies, currentPageVacancies,
-    errorVacancies,
-    isLoadingVacancies,
+    currentPageVacancies,
     jobAreaVacancies,
     keyWordVacancies,
     pageCountVacancies,
@@ -18,49 +16,57 @@ import {
     paymentToVacancies,
     vacanciesDataVacancies
 } from "2-BLL/vacanciesSlice/vacancies.selectors";
-import {vacanciesDataSelectedVacancies} from "2-BLL/selectedVacanciesSlice/selectedVacancies.selectors";
+import {useLazyGetVacanciesQuery} from '2-BLL/vacanciesSlice/service/vacancies.slice';
+import {VacancyInfo} from "../../../../../../../2-BLL/vacanciesSlice/service/vacancies.types";
+
 
 export const JobOffers = () => {
 
+    const [setVacancies, {data, isLoading, error}] = useLazyGetVacanciesQuery()
+
     const dispatch = useAppDispatch()
-    const vacancies = useAppSelector(vacanciesDataVacancies).objects
-    const selectedVacancies = useAppSelector(vacanciesDataSelectedVacancies).objects
-    const error = useAppSelector(errorVacancies)
-    const isLoading = useAppSelector(isLoadingVacancies)
-    const totalVacancies = useAppSelector(vacanciesDataVacancies).total
+    const [vacanciesData, setVacanciesData] = useState<VacancyInfo[] | []>([])
+    const totalVacancies = data ? data.total : 0
     const currentPage = useAppSelector(currentPageVacancies)
     const pagesCount = useAppSelector(pageCountVacancies)
-    const paymentFrom = useAppSelector(paymentFromVacancies)
-    const paymentTo = useAppSelector(paymentToVacancies)
+    const payment_from = useAppSelector(paymentFromVacancies)
+    const payment_to = useAppSelector(paymentToVacancies)
     const jobArea = useAppSelector(jobAreaVacancies)
-    const keyWord = useAppSelector(keyWordVacancies)
-    const catalogues = useAppSelector(catalogueDataVacancies)
+    const keyword = useAppSelector(keyWordVacancies)
+    const catalogues = useAppSelector(state => state.vacancies.catalogueData)
+    const access_token = useAppSelector(state => state.auth.userAuthData.access_token)
+
+    let catalogueID = catalogues.find(c => c.title_rus === jobArea) ?
+        catalogues.find(c => c.title_rus === jobArea)!.key.toString() : ''
+
+    console.log(catalogues)
 
     const [activePage, setPage] = useState<number>(1);
     const maxVacancies = 500;
-    const totalPages = totalVacancies  > maxVacancies  ? maxVacancies / pagesCount : totalVacancies / pagesCount
-    const [keyWordValue, setKeyWordValue] = useState<string>(keyWord)
+    const totalPages = totalVacancies > maxVacancies ? maxVacancies / pagesCount : totalVacancies / pagesCount
+    const [keyWordValue, setKeyWordValue] = useState<string>(keyword)
 
     const {classes, cx} = useStyles();
-
-    const keyWordInputDataAttribute = {'data-elem': 'search-input'}
-    const useKeyWordDataAttribute = {'data-elem': 'search-button'}
 
     const setKewWordHandler = () => {
         dispatch(vacanciesActions.setKeyWord({keyWord: keyWordValue}))
     }
 
     useEffect(() => {
-        if (catalogues.length === 0) {
-            dispatch(vacanciesThunks.setCatalogueData())
-            dispatch(vacanciesThunks.setVacanciesData({currentPage: 1, count: pagesCount}))
-        } else {
-            dispatch(vacanciesThunks.setFiltredVacanciesData())
+        if (access_token) {
+            setVacancies({page: activePage, count: pagesCount, keyword, payment_from, payment_to, catalogues: catalogueID})
+                .then(res => {
+                    setVacanciesData(res!.data!.objects!)
+                })
         }
-        setKeyWordValue(keyWord)
+        setKeyWordValue(keyword)
         setPage(currentPage)
-    }, [keyWord, currentPage, currentPage, paymentFrom, paymentTo, jobArea])
+    }, [access_token, keyword, currentPage, currentPage, payment_from, payment_to, jobArea])
 
+    let errorMessageText: string = ''
+    if (error && 'status' in error!) {
+        errorMessageText = 'error' in error ? error.error : JSON.stringify(error.data)
+    }
 
     return (
         <Container className={classes.jobSearchContainer}>
@@ -76,20 +82,19 @@ export const JobOffers = () => {
                        rightSection={
                            <Button size="sm"
                                    disabled={isLoading}
-                                   onClick={setKewWordHandler}{...useKeyWordDataAttribute}>
+                                   onClick={setKewWordHandler}>
                                Поиск
                            </Button>}
-                       {...keyWordInputDataAttribute}
             />
-            {vacancies.length > 0 && vacancies.map(({
-                                                        id,
-                                                        profession,
-                                                        payment_from,
-                                                        currency,
-                                                        type_of_work,
-                                                        town,
-                                                        marked
-                                                    }) => {
+            {vacanciesData.map(({
+                                    id,
+                                    profession,
+                                    payment_from,
+                                    currency,
+                                    type_of_work,
+                                    town,
+                                    marked
+                                }) => {
                 return (
                     <VacancyItem key={id} id={id} professionName={profession}
                                  payment_from={payment_from}
@@ -99,7 +104,7 @@ export const JobOffers = () => {
                                  marked={marked} showSelectedVacancy={false}/>
                 )
             })}
-            {vacancies.length > 0 &&
+            {vacanciesData.length > 0 &&
                 <Pagination className={classes.jobSearchPagination}
                             value={activePage}
                             onChange={(value) => {
@@ -108,11 +113,11 @@ export const JobOffers = () => {
                             }}
                             total={totalPages}/>}
 
-            {isLoading === false && vacancies.length === 0 &&
+            {isLoading === false && vacanciesData.length === 0 &&
                 <Text className={classes.jobSearchNotFound}>Упс, совпадений по заданному набору фильтров нет</Text>
             }
 
-            <ErrorComponent errorMessage={error}/>
+            <ErrorComponent errorMessage={errorMessageText}/>
 
         </Container>
     );
