@@ -39,7 +39,6 @@ export const JobOffers = () => {
     let catalogueID = catalogues.find(c => c.title_rus === jobArea) ?
         catalogues.find(c => c.title_rus === jobArea)!.key.toString() : ''
 
-    console.log(catalogues)
 
     const [activePage, setPage] = useState<number>(1);
     const maxVacancies = 500;

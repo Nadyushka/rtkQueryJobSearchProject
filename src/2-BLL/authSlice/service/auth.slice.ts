@@ -4,7 +4,7 @@ import {authParams, ResponseTypeAuth} from "./auth.types";
 export const authSlice = createApi({
     reducerPath: "authSlice",
     baseQuery: fetchBaseQuery({
-        baseUrl: "https://startup-summer-2023-proxy.onrender.com/2.0/",
+        baseUrl: "https://api.superjob.ru",
         credentials: "include",
         prepareHeaders: (headers) => {
             headers.set('x-secret-key', 'GEU4nvd3rej*jeh.eqp')

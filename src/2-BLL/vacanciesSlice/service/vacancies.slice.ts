@@ -6,7 +6,7 @@ import {AppRootStateType} from "../../store";
 export const vacanciesSlice = createApi({
     reducerPath: "vacanciesSlice",
     baseQuery: fetchBaseQuery({
-        baseUrl: "https://startup-summer-2023-proxy.onrender.com/2.0/",
+        baseUrl: "https://api.superjob.ru",
         credentials: "include",
         prepareHeaders: (headers, {getState}) => {
             const token = (getState() as AppRootStateType).auth.userAuthData.access_token
